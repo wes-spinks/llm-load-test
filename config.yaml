@@ -4,28 +4,29 @@ output:
   file: "output.json"
 warmup: True
 warmup_options:
-  requests: 11
+  requests: 3
   timeout_sec: 20
 storage: # TODO
   type: local
 dataset:
   file: "datasets/openorca_large_subset_011.jsonl"
-  max_queries: 1000
+  max_queries: 20
   min_input_tokens: 0
-  max_input_tokens: 1024
-  max_output_tokens: 256
-  max_sequence_tokens: 1024
+  max_input_tokens: 100
+  max_output_tokens: 200
+  max_sequence_tokens: 150
 load_options:
   type: constant #Future options: loadgen, stair-step
-  concurrency: 2
+  concurrency: 5
   duration: 20 # In seconds. Maybe in future support "100s" "10m", etc...
-plugin: "tgis_grpc_plugin"
+plugin: "openai_plugin"
 plugin_options:
   #interface: "grpc" # Some plugins like caikit-nlp-client should support grpc/http
   use_tls: False # Use True if querying an SSL grpc endpoint over https
-  streaming: True
-  model_name: "flan-t5-small"
-  host: "route.to.host"
-  port: 8033
+  streaming: False
+  model_name: "/mnt/models/"
+  host: https://test-model-lupanza-shadowbot-ai--runtime-int.apps.stc-ai-e1-dev.bpis.p1.openshiftapps.com #"route.to.host"
+  port: 443
+  endpoint: "/v1/chat/completions"
 extra_metadata:
   replicas: 1
