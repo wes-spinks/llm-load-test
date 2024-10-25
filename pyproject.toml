@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "llm-load-test"
+version = "0.1.0"
+description = ""
+authors = ["Wesley Spinks <wspinks@redhat.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+caikit-nlp-client = "^0.0.8"
+deprecation = "^2.1.0"
+flake8 = "^7.1.1"
+isort = "^5.13.2"
+pandas = "^2.2.3"
+pyyaml = "^6.0.2"
+pylint = "^3.3.1"
+numpy = "^2.1.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
