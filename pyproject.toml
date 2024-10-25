@@ -6,7 +6,7 @@ authors = ["Wesley Spinks <wspinks@redhat.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.9,<4.0"
 caikit-nlp-client = "^0.0.8"
 deprecation = "^2.1.0"
 flake8 = "^7.1.1"
