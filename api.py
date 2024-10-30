@@ -82,7 +82,7 @@ def begin_load_test():
         _create_visual(uuid)
 
     test_and_visualize(data["uuid"])
-    content["url"] = f"view/{data['uuid']}"
+    content["url"] = f"/view?uuid={data['uuid']}"
     content["status"] = "success"
     app.logger.info(f"""request: {data}; init output: {content}""")
     return make_response(jsonify(content), 202)
