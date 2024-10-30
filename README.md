@@ -146,6 +146,38 @@ For example:
 }
 ```
 
+## API (Work In Progress)
+Python `gunicorn` endpoints for requesting load-test jobs and serves generated content from `static/` dir.
+
+### Getting Started
+get repo then build the container locally
+```
+git clone -b api git@github.com:wes-spinks/llm-load-test.git llm_load_test
+podman build -t lltapi -f llm_load_test/Dockerfile
+```
+
+### Start Container
+`podman run -p 8443:8443 lltapi`
+
+### Test Setup
+Visit the running application in your browser at [http://localhost:8443/view?ABCDEFGH-0123-4567-9910-ABCDEFGH1234](http://localhost:8443/view?ABCDEFGH-0123-4567-9910-ABCDEFGH1234)  
+or  
+`curl --location http://127.0.0.1:8443/static/ABCDEFGH-0123-4567-9910-ABCDEFGH1234/output.json | jq '.results[:2]'`
+
+### Run llm_load_test
+- This will return a new UUID that you can use in a followup call to view the load test results
+```
+curl -k -X POST -d '{"host":"https://serverless-app.preprod.us-east-1.aws.cluster.domain.com", "model":"/mnt/models/"}' \
+  --header "Content-type: application/json" --location http://127.0.0.1:8443/init-test
+{"details":"e8320c94-4dab-42dc-9006-060b8194e935","status":"success","url":"/view?uuid=e8320c94-4dab-42dc-9006-060b8194e935"}
+```
+
+### View Generated Results
+Similar to before, using the unique job ID, view via browser or `curl`    
+```
+curl --location http://127.0.0.1:8443/static/<JOB_UUID>/output.json
+```
+
 ## Contributing
 
 Contributions to this tool are welcome!
