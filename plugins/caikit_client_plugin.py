@@ -5,8 +5,8 @@ import time
 import urllib3
 from caikit_nlp_client import GrpcClient, HttpClient
 
-from plugins import plugin
-from result import RequestResult
+from . import plugin
+from llm_load_test.result import RequestResult
 
 urllib3.disable_warnings()
 
