@@ -11,14 +11,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from flask import Flask, Response, jsonify, make_response, request
+from datetime import datetime
+from flask import Flask, Response, jsonify, make_response, request, render_template
+from jinja2 import Environment, FileSystemLoader
 
 from llm_load_test import load_test
 from llm_load_test.performance_visualization import visualize
 
 APP_HOST = os.environ.get("APP_HOST", "0.0.0.0")
 APP_PORT = os.environ.get("APP_PORT", "8443")
-KUBERNETES_HOST = os.environ.get("KUBERNETES_SERVICE","localhost")
 
 LOG_FMT = "[%(asctime)s] [%(process)d] [%(levelname)s] %(message)s"
 LOG_DATE_FMT = "%Y-%m-%d %H:%M:%S %z"
@@ -26,20 +27,20 @@ logging.basicConfig(
     format=LOG_FMT,
     datefmt=LOG_DATE_FMT,
     stream=sys.stdout,
-    level=logging.DEBUG,
+    level=logging.INFO,
 )
 
 app = Flask(__name__, static_url_path="/static")
-app.logger.setLevel(os.environ.get("LOGGING_LEVEL", "DEBUG"))
+app.logger.setLevel(os.environ.get("LOGGING_LEVEL", "INFO"))
 unverified_context = ssl._create_unverified_context()  # pylint: disable=W0212
-app.logger.info(f"LLM Load Test API service running on '{KUBERNETES_HOST}'")
+
 
 def new_uuid() -> str:
     _new = uuid.uuid4()
     return str(_new)
 
 
-@app.route("/health")
+@app.route("/health", methods=["GET"])
 def ready():
     """Simple health check to confirm app is responding
 
@@ -67,29 +68,72 @@ def begin_load_test():
     """
     content = {"status": "error", "url": "", "details": "Requires 'host' key/value"}
     data = request.get_json()
-    
-    if "host" not in data:
+
+    if not data.get("plugin_options").get("host"):
         return make_response(jsonify(content), 400)
     data["uuid"] = content["details"] = new_uuid()
     app.logger.info(f"Beginning load test for: {data['uuid']}")
 
+    def _custom_config(data) -> str:
+        env = Environment(loader=FileSystemLoader("llm_load_test/templates"))
+        template = env.get_template("llt_config_template.j2")
+        rendered_template = template.render(data)
+        try:
+            os.mkdir(f"/opt/app-root/src/llm_load_test/static/{data['uuid']}")
+        except FileExistsError:
+            pass
+        outpath = f"llm_load_test/static/{data['uuid']}/config.yaml"
+        with open(outpath, "w") as configout:
+            configout.write(rendered_template)
+        return outpath
+
     def _create_visual(uuid: str):
         visualize(uuid)
-        app.logger.info(f"Created visual for {data['uuid']}")
+        app.logger.info(f"VISUALIZED: {uuid}")
 
-    def test_and_visualize(uuid: str):
-        load_test.main(["-c", "llm_load_test/config.yaml", "-u", uuid])
+    def test_and_visualize(data: str):
+        uuid = data["uuid"]
+        cfgpath = _custom_config(data)
+        app.logger.info(f"CONFIG GENERATED: {cfgpath}")
+        try:
+            load_test.main(["-c", f"{cfgpath}", "-u", uuid])
+        except SystemExit as err:
+            os.rmdir(f"/opt/app-root/src/llm_load_test/static/{data['uuid']}")
+            return False
         _create_visual(uuid)
+        return True
 
-    test_and_visualize(data["uuid"])
-    content["url"] = f"/view?uuid={data['uuid']}"
-    content["status"] = "success"
+    try:
+        test_success = test_and_visualize(data)
+        if not test_success:
+            content[
+                "details"
+            ] = "Error during {} load tests. Deleted results.".format(
+                str(data["plugin_options"]["host"])
+            )
+            return content
+        content["url"] = f"/view/{data['uuid']}"
+        content["status"] = "success"
+    except FileNotFoundError as err:
+        content["details"] = str(err)
     app.logger.info(f"""request: {data}; init output: {content}""")
     return make_response(jsonify(content), 202)
 
 
-@app.route("/view", methods=["GET", "POST"])
-def view_test():
+def list_existing(basedir: str = "llm_load_test/static"):
+    files = []
+    for name in os.listdir(basedir):
+        if os.path.isdir(f"{basedir}/{name}"):
+            modtime = datetime.fromtimestamp(
+                os.path.getmtime(f"{basedir}/{name}")
+            ).strftime("%Y-%m-%d %H:%M:%S")
+            test = (name, modtime)
+            files.append(test)
+    return render_template("static_view.html", files=files, basedir=basedir)
+
+
+@app.route("/view/<string:uuid>", methods=["GET"])
+def view_test(uuid):
     """Endpoint to view HTML of a completed test
 
     Arguments:
@@ -101,17 +145,21 @@ def view_test():
           image[obj]:
             performance visualization image
     """
-    uuid = request.args.get("uuid")
     app.logger.info(f"""request: {uuid}""")
+    if uuid == "list":
+        return list_existing()
 
-    ret = {"status": "Error", "message": "Request requires valid uuid as path param"}
-    if not is_valid_uuid(uuid):
-        return make_response(jsonify(ret), 400)
+    ret = {"status": "Error", "message": "Requires UUID"}
     if not uuid:
+        return make_response(jsonify(ret), 400)
+    if not is_valid_uuid(uuid):
+        message = "Request requires valid uuid as path param (e.g. view/<uuid>)"
         return make_response(jsonify(ret), 400)
 
     test_path = f"llm_load_test/static/{uuid}"
-    out = urllib.request.urlopen(f"http://localhost:8443/static/{uuid}/output.json")
+    out = urllib.request.urlopen(
+        f"file:///opt/app-root/src/llm_load_test/static/{uuid}/output.json"
+    )
     outputjson = json.loads(out.read())
 
     templ = f"""
@@ -135,6 +183,7 @@ def view_test():
     <br>
     <p>Go to <a href='/static/{uuid}/output.json'>/static/{uuid}/output.json</a> for non-HTML (output JSON only)</p>
     <p>Go to <a href='/static/{uuid}/image.png'>/static/{uuid}/image.png</a> for image only</p>
+    <p>Go to <a href='/static/{uuid}/config.yaml' target="_blank">/static/{uuid}/config.yaml</a> to download config.yaml</p>
     </body></html>
     """
     ret = {"status": "success", "message": "html returned"}

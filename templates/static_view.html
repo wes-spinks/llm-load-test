@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LLM Load Test API Files</title>
+</head>
+<body>
+    <ul>{% for file in files %}
+            <li><a href="/view/{{ file[0] }}">{{ file[0] }}</a> - Modified: {{ file[1] }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

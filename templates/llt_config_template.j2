@@ -1,0 +1,31 @@
+output:
+  format: "json"
+  dir: "llm_load_test/output/{{ uuid }}/"
+  file: "output.json"
+warmup: True
+warmup_options:
+  requests: 2
+  timeout_sec: 20
+storage:
+  type: local
+dataset:
+  file: {{ dataset.file | default("llm_load_test/datasets/openorca_large_subset_011.jsonl") }}
+  max_queries: {{ dataset.max_queries | default("10") }}
+  min_input_tokens: {{ dataset.min_input_tokens | default("0") }}
+  max_input_tokens: {{ dataset.max_input_tokens | default("100") }}
+  max_output_tokens: {{ dataset.max_output_tokens | default("100") }}
+  max_sequence_tokens: {{ dataset.max_sequence_tokens | default("150") }}
+load_options:
+  type: constant
+  concurrency: 2
+  duration: 20 
+plugin: "openai_plugin"
+plugin_options:
+  use_tls: False
+  streaming: False
+  model_name: {{ plugin_options.model_name | default("/mnt/models/") }}
+  host: {{ plugin_options.host | default("http://vllm-predictor.composer-ai--runtime-int.svc.cluster.local")}}
+  port: {{ plugin_options.port | default("443") }}
+  endpoint: {{ plugin_options.endpoint | default("/v1/chat/completions") }}
+extra_metadata:
+  replicas: 1
