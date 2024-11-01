@@ -178,7 +178,7 @@ Python `gunicorn` endpoints for requesting load-test jobs and serves generated c
 ### Getting Started
 get repo then build the container locally
 ```
-git clone -b api git@github.com:wes-spinks/llm-load-test.git
+git clone git@github.com:wes-spinks/llm-load-test.git
 cd llm-load-test
 podman build -t lltapi -f Dockerfile
 ```
