@@ -5,13 +5,13 @@ import logging.handlers
 import multiprocessing as mp
 import sys
 import time
-from user import User
+from .user import User
 
-from dataset import Dataset
+from .dataset import Dataset
 
-import logging_utils
+from . import logging_utils
 
-import utils
+from . import utils
 
 
 def run_main_process(concurrency, duration, dataset, dataset_q, stop_q):
@@ -26,7 +26,7 @@ def run_main_process(concurrency, duration, dataset, dataset_q, stop_q):
     current_time = start_time
     while (current_time - start_time) < duration:
         # Keep the dataset queue full for duration
-        if dataset_q.qsize() < int(0.5*concurrency + 1):
+        if dataset_q.qsize() < int(0.5 * concurrency + 1):
             logging.info("Adding %d entries to dataset queue", concurrency)
             for query in dataset.get_next_n_queries(concurrency):
                 dataset_q.put(query)
@@ -76,7 +76,10 @@ def run_warmup(
         )
         current_time = time.time()
         if (current_time - start_time) > warmup_timeout:
-            logging.error("Warmup timed out (%s seconds) before receiving all responses", warmup_timeout)
+            logging.error(
+                "Warmup timed out (%s seconds) before receiving all responses",
+                warmup_timeout,
+            )
             return False
         time.sleep(2)
 
@@ -109,7 +112,9 @@ def gather_results(results_pipes):
     return results_list
 
 
-def exit_gracefully(procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, code):
+def exit_gracefully(
+    procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, code
+):
     """Exit gracefully."""
     # Signal users to stop sending requests
     if warmup_q is not None and warmup_q.empty():
@@ -119,7 +124,9 @@ def exit_gracefully(procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thr
         stop_q.put(None)
 
     if dataset_q is not None and not dataset_q.empty():
-        logging.warning("Removing more elements from dataset_q after gathering results!")
+        logging.warning(
+            "Removing more elements from dataset_q after gathering results!"
+        )
         while not dataset_q.empty():
             dataset_q.get()
 
@@ -132,7 +139,9 @@ def exit_gracefully(procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thr
     logger_q.put(None)
     log_reader_thread.join()
 
-    sys.exit(code)
+    if code != 0:
+        sys.exit(code)
+    return True
 
 
 def main(args):
@@ -158,7 +167,9 @@ def main(args):
         concurrency, duration, plugin = utils.parse_config(config)
     except Exception as e:
         logging.error("Exiting due to invalid input: %s", e)
-        exit_gracefully(procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, 1)
+        exit_gracefully(
+            procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, 1
+        )
 
     try:
         logging.debug("Creating dataset with configuration %s", config["dataset"])
@@ -203,7 +214,9 @@ def main(args):
                 warmup_timeout=warmup_timeout,
             )
             if not warmup_passed:
-                exit_gracefully(procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, 1)
+                exit_gracefully(
+                    procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, 1
+                )
             else:
                 time.sleep(2)
 
@@ -212,11 +225,14 @@ def main(args):
 
         results_list = gather_results(results_pipes)
 
+        config["uuid"] = args.uuid
         utils.write_output(config, results_list)
 
     except Exception:
         logging.exception("Unexpected exception in main process")
-        exit_gracefully(procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, 1)
+        exit_gracefully(
+            procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, 1
+        )
 
     exit_gracefully(procs, warmup_q, dataset_q, stop_q, logger_q, log_reader_thread, 0)
 

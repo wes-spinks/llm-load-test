@@ -7,10 +7,9 @@ import os
 from pathlib import Path
 
 import numpy as np
-
 import pandas as pd
 
-from plugins import (
+from .plugins import (
     caikit_client_plugin,
     dummy_plugin,
     hf_tgi_plugin,
@@ -55,6 +54,12 @@ def parse_args(args):
         help="config YAML file name",
     )
     parser.add_argument(
+        "-u",
+        "--uuid",
+        default=None,
+        help="UUID for llm_load_test request",
+    )
+    parser.add_argument(
         "-log",
         "--log_level",
         default="info",
@@ -77,10 +82,9 @@ def parse_config(config):
     duration = load_options.get("duration")
 
     plugin_type = config.get("plugin")
+    logging.info(plugin_type)
     if plugin_type == "openai_plugin":
-        plugin = openai_plugin.OpenAIPlugin(
-            config.get("plugin_options")
-        )
+        plugin = openai_plugin.OpenAIPlugin(config.get("plugin_options"))
     elif plugin_type == "caikit_client_plugin":
         plugin = caikit_client_plugin.CaikitClientPlugin(config.get("plugin_options"))
     elif plugin_type == "tgis_grpc_plugin":
@@ -110,7 +114,8 @@ def yaml_load(file):
 def write_output(config, results_list):
     """Write the results."""
     output_options = config.get("output")
-    output_path = output_options.get("dir")
+    uuid = config.get("uuid")
+    output_path = f"llm_load_test/static/{uuid}"
 
     logging.info("Writing output to %s", output_path)
     path = Path(output_path)
@@ -138,7 +143,7 @@ def write_output(config, results_list):
 
     with pd.option_context("display.max_rows", None, "display.max_columns", None):
         print(df)
-    print(f"\n---\nFull results in {outfile}. Results summary:")
+    print(f"\n{uuid}\n---\nFull results in {outfile}. Results summary:")
 
     error_count = len(df[~df["error_text"].isnull()])
     req_count = len(df)

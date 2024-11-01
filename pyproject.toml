@@ -1,21 +1,25 @@
 [tool.poetry]
-name = "llm-load-test"
+name = "llm_load_test"
 version = "0.1.0"
 description = ""
 authors = ["Wesley Spinks <wspinks@redhat.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
 caikit-nlp-client = "^0.0.8"
-deprecation = "^2.1.0"
-flake8 = "^7.1.1"
-isort = "^5.13.2"
-pandas = "^2.2.3"
-pyyaml = "^6.0.2"
-pylint = "^3.3.1"
-numpy = "^2.1.2"
+pandas = "*"
+pyyaml = "*"
+pylint = "*"
+numpy = "*"
+flask = "*"
+matplotlib = "*"
+python-dotenv = "*"
+gunicorn = "*"
 
+[virtualenvs]
+in-project = true
 
 [build-system]
 requires = ["poetry-core"]

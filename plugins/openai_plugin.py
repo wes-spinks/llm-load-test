@@ -5,8 +5,8 @@ import time
 import requests
 import urllib3
 
-from plugins import plugin
-from result import RequestResult
+from . import plugin
+from llm_load_test.result import RequestResult
 
 urllib3.disable_warnings()
 """
@@ -46,6 +46,8 @@ class OpenAIPlugin(plugin.Plugin):
 
         self.model_name = args.get("model_name")
 
+        self.stop = args.get("stop", ["<|endoftext|>"])
+
         logger.debug("Model name: %s", self.model_name)
 
     def request_http(self, query: dict, user_id: int, test_end_time: float = 0):
@@ -75,6 +77,9 @@ class OpenAIPlugin(plugin.Plugin):
             }
         if self.model_name is not None:
             data["model"] = self.model_name
+
+        if self.stop is not None:
+            data["stop"] = self.stop
 
         response = None
         try:
